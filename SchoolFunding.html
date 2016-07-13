@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+
+
+<head>
+  
+  <script src="http://d3js.org/d3.v3.min.js"></script> 
+  <script src="https://d3js.org/d3-drag.v1.min.js"></script>
+<!--  <script src="https://d3js.org/d3.v4.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+
+	<style type="text/css">
+
+	   .chartContainer {
+    }
+
+    	.bar {    		
+    	}
+
+		.selectedBar {
+    		stroke: black;
+    		stroke-width: 1;
+    	}
+
+    	.localBar {
+    		fill: rgb(55,126,184);
+    	}
+
+		.stateBar {
+    		fill: rgb(228,26,28); 
+    	}
+
+    	.fedBar {
+    		fill: rgb(255,127,0);
+    	}
+
+    	
+		.incomeIndicator {
+    		fill:black;
+    	}
+
+    	.gridLine {
+    		stroke:rgb(200,200,200);
+    		stroke-width:0.65;
+    	}
+
+    	.legendText {
+    		fill: black;
+    		stroke: none;
+    		font-size: 9pt;
+    		font-family: "Arial";
+    	}
+
+    	.legendHeading {
+    		font-weight: bold;
+    	}
+
+    	.buttonClass {
+    		fill: rgb(200,200,200);
+    		stroke: black;
+    	}
+
+    	.buttonClass:hover{
+    		opacity: 0.75;
+    	}
+
+    	.buttonClassClicked {
+    		fill: blue;
+    	}
+	    	
+    
+		.buttonText {
+			fill: black;
+    		stroke: none;
+    		font-size: 9pt;
+    		font-family: "Arial";
+		}
+
+		.overlay {
+			fill: rgba(250,250,250,0.75);
+			stroke: gray;
+
+		}
+
+
+	</style>
+
+</head>
+
+<html>
+
+<div id="parentDiv">
+	Loading . . .
+</div>
+
+<!-- <button id="ChangeBaseline" onclick="dataBaseline = changeBaseline(dataBaseline,districtCount)">Change Baseline</button>  -->
+
+  <script>
+
+	var dataBaseline = "federal";	
+	var districtCount = 0; 
+	var chartBaselineYPos = 600;
+
+  	function yPositions (baseline, localHeight,stateHeight,fedHeight){
+  		var newLocalY;
+  		var newStateY;
+  		var newFedY;
+
+  		switch (baseline) {
+  			case "local":
+  			default:
+  				newLocalY = chartBaselineYPos-localHeight;
+  				newStateY = chartBaselineYPos-stateHeight-localHeight;
+  				newFedY = chartBaselineYPos - stateHeight - localHeight - fedHeight;
+  				break;
+  			case "state":
+  				newStateY = chartBaselineYPos - stateHeight;
+  				newFedY = chartBaselineYPos - stateHeight - fedHeight;
+  				newLocalY = chartBaselineYPos - stateHeight - fedHeight - localHeight;
+  				break; 
+  			case "federal":
+  				newFedY = chartBaselineYPos - fedHeight;
+  				newStateY = chartBaselineYPos - fedHeight - stateHeight;
+  				newLocalY = chartBaselineYPos - fedHeight - stateHeight - localHeight;
+  			}
+  		return [newLocalY, newStateY, newFedY];	
+  }
+
+    function drawDistrictBar(districtNumber,perStudentSpending,localRevenuePct,stateRevenuePct, fedRevenuePct, baseline, xPos) {
+ 		
+    	var barHeight = d3.scale.linear()
+    	.domain([0,40000])
+    	.range ([0, 200]);
+
+ 		var totalHeight = barHeight(perStudentSpending);
+ 		var localHeight = totalHeight*localRevenuePct/100;
+		var stateHeight = totalHeight*stateRevenuePct/100;
+ 		var fedHeight = totalHeight*fedRevenuePct/100;
+ 		var yValues = yPositions (baseline, localHeight, stateHeight, fedHeight);
+ 		var localY = yValues[0];
+ 		var stateY = yValues[1];
+ 		var fedY = yValues[2];
+
+		d3.select("#theChart").append("g").attr("id", "combinedBar" + districtNumber).attr("onclick", "toggleDistrictDetailDisplay("+districtNumber+")");
+		var theGroup = d3.select("#combinedBar"+districtNumber);
+		theGroup.append("rect").attr("id", "localBar" + districtNumber).attr("class", "localBar bar").attr("width", colWidth).attr("height", localHeight).attr("x",xPos(districtNumber)).attr("y", localY).attr("title","Testing 1 2 3");      	
+		theGroup.append("rect").attr("id", "stateBar" + districtNumber).attr("class", "stateBar bar").attr("width", colWidth).attr("height", stateHeight).attr("x",xPos(districtNumber)).attr("y", stateY);      	
+		theGroup.append("rect").attr("id", "fedBar" + districtNumber).attr("class", "fedBar bar").attr("width", colWidth).attr("height", fedHeight).attr("x",xPos(districtNumber)).attr("y", fedY);      	 	    	
+        }
+
+    function deleteDistrictDetailDisplay(districtNumber) {
+    	d3.select("#overlay"+districtNumber).remove()
+		d3.select("#localBar"+districtNumber).classed("selectedBar",false);
+		d3.select("#stateBar"+districtNumber).classed("selectedBar",false);
+		d3.select("#fedBar"+districtNumber).classed("selectedBar",false);
+    }    
+
+    function toggleDistrictDetailDisplay(districtNumber) {
+
+    	var districtName = dataSet[districtNumber]["GEO.display.label"];
+    	districtName = districtName.replace	(", New York", "");
+    	var districtEnrollment = dataSet[districtNumber]["ENROLL"];
+    	var districtPopulation = dataSet[districtNumber]["PopEstimate"];
+    	var districtSpending = dataSet[districtNumber]["PPCSTOT"];
+    	var districtLocalRevPct = dataSet[districtNumber]["PCTLTOT"];
+    	var districtStateRevPct = dataSet[districtNumber]["PCTSTOT"];
+    	var districtFedRevPct = dataSet[districtNumber]["PCTFTOT"];
+    	var districtAvgIncome = dataSet[districtNumber]["MeanIncomeEst"];
+    	var labelAlign = 180;
+    	var numberSpace = 55;
+    	var x0 = 100;
+    	var y0 = 100;
+    	var selectedLocalBar = d3.select("#localBar"+districtNumber);
+    	var selectedStateBar = d3.select("#stateBar"+districtNumber);
+    	var selectedFedBar = d3.select("#fedBar"+districtNumber);
+		var theDisplay;
+
+		if (selectedLocalBar.classed("selectedBar")==true){
+			deleteDistrictDetailDisplay(districtNumber);
+			return;
+		}
+
+		selectedLocalBar.classed("selectedBar", true);
+		selectedStateBar.classed("selectedBar", true);
+		selectedFedBar.classed("selectedBar", true);
+		
+		x0 = selectedStateBar.attr("x")-150;
+		y0 = - 15 - 140 + Math.min(selectedLocalBar.attr("y"), selectedStateBar.attr("y"), selectedFedBar.attr("y"));
+
+    	d3.select("#theChart").append("g").attr("id", "overlay"+districtNumber).attr("onclick", "deleteDistrictDetailDisplay(" + districtNumber +")");
+		theDisplay = d3.select("#overlay"+districtNumber);
+	
+		var theRect = theDisplay.append("rect").attr("x",x0).attr("y",y0).attr("height",140).attr("width",300).attr("class","overlay");
+		theDisplay.append("text").attr("x",x0+10).attr("y",y0+20).text(districtName).attr("class", "legendText legendHeading");
+		
+		theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+35).text("Population:").attr("class","legendText").attr("text-anchor", "end");
+		theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+35).text(Number(districtPopulation).toLocaleString()).attr("class","legendText").attr("text-anchor", "end");
+		theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+50).text("Enrollment:").attr("class","legendText").attr("text-anchor", "end");;
+		theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+50).text(Number(districtEnrollment).toLocaleString()).attr("class","legendText").attr("text-anchor", "end");;
+		theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+65).text("Mean Per Capita Income:").attr("class", "legendText").attr("text-anchor", "end");;
+    	theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+65).text("$"+Number(districtAvgIncome).toLocaleString()).attr("class", "legendText").attr("text-anchor", "end");;
+		theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+80).text("Spending Per Student:").attr("class", "legendText").attr("text-anchor", "end");;
+		theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+80).text("$"+Number(districtSpending).toLocaleString()).attr("class", "legendText").attr("text-anchor", "end");;
+		theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+95).text("Revenue from Local Sources:").attr("class","legendText").attr("text-anchor", "end");
+    	theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+95).text(districtLocalRevPct+"%").attr("class","legendText").attr("text-anchor", "end");
+    	theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+110).text("Revenue from State Sources:").attr("class","legendText").attr("text-anchor", "end");
+    	theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+110).text(districtStateRevPct+"%").attr("class","legendText").attr("text-anchor", "end");
+    	theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+125).text("Revenue from Federal Sources:").attr("class","legendText").attr("text-anchor", "end");
+    	theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+125).text(districtFedRevPct+"%").attr("class","legendText").attr("text-anchor", "end");
+    }   
+
+  	function changeDistrictBarBaseline (districtNumber, baseline) {
+		var localBarId = "#localBar" + districtNumber;
+		var stateBarId = "#stateBar" + districtNumber;
+		var fedBarId = "#fedBar" + districtNumber;
+		
+ 		var localHeight = d3.select(localBarId).attr("height");
+ 		var stateHeight = d3.select(stateBarId).attr("height");
+ 		var fedHeight = d3.select(fedBarId).attr("height");
+
+		var newYValues = yPositions (baseline, localHeight, stateHeight, fedHeight);
+ 		var newLocalY = newYValues[0];
+ 		var newStateY = newYValues[1];
+ 		var newFedY = newYValues[2];
+ 		
+		d3.select(localBarId).transition().attr("y", newLocalY);
+		d3.select(stateBarId).transition().attr("y", newStateY);
+		d3.select(fedBarId).transition().attr("y", newFedY);
+//		d3.select("mySVG #localBar6").transition().attr("class", "fedBar");
+	}	
+
+   	function plotMeanIncome(districtNumber, meanIncome, xPos) {
+        	var incomeHeight = d3.scale.linear()
+        		.domain([0,120000])
+        		.range([chartBaselineYPos,0]);
+        	d3.select("#theChart")
+        		.append("ellipse")
+        		.attr("class", "incomeIndicator")	
+        		.attr("cx", xPos(districtNumber)+colWidth/2)
+        		.attr("cy", incomeHeight(meanIncome))
+        		.attr("rx", 1.5)
+        		.attr("ry", 1.5);
+        }
+
+    function draw_y_grid(xPos,districtCount) {	
+
+        	var dollarGridLineYPos = d3.scale.linear()
+    			.domain([0,120000])
+    			.range ([chartBaselineYPos, 0]);
+
+//    		d3.select("#theChart").append("text").attr("class","legendText").attr("text-anchor","end").text("Income/Spending").attr("x",leftMargin+10).attr("y",10);	
+
+			function drawYaxisLabel(xCoord) {
+				d3.select("#theChart")
+        			.append("text")
+        			.attr("class", "legendText")
+        			.attr("text-anchor", "end")
+        			.text("$" + i/1000+"k")  // "$"+4*i/1000+"k"+"   /   "+
+        			.attr("x", xCoord)
+        			.attr("y", 4+dollarGridLineYPos(i));
+			}
+
+			function drawYgridLine(dollarValue){
+				d3.select("#theChart")
+        			.append("line")
+        			.attr("class", "gridLine")
+        			.attr("x1", leftMargin)
+        			.attr("y1", dollarGridLineYPos(dollarValue))
+        			.attr("x2", xPos(districtCount))
+        			.attr("y2", dollarGridLineYPos(dollarValue));
+			}
+
+			for (i=5000; i<120000; i+=5000) {
+    	    		drawYaxisLabel(leftMargin-8);
+    	    		drawYaxisLabel(2350);
+    	    		drawYgridLine(i);
+				}
+	}	
+
+	function drawChangeBaselineButton(side) {
+
+		var leftAlignment = 10;
+		if (side=="right") {leftAlignment = 2385;}
+
+		d3.select("#theChart").append("g").attr("id",side+"changeBaselineButton").attr("class","buttonClass").attr("onmouseup","dataBaseline = changeBaseline(dataBaseline,districtCount)").attr("cursor","pointer");
+		d3.select("#"+side+"changeBaselineButton").append("rect").attr("class","buttonClass").attr("width", 110).attr("height", 20).attr("x",leftAlignment).attr("y",600).attr("rx",5).attr("ry",5);			
+		d3.select("#"+side+"changeBaselineButton").append("text").attr("class","buttonText").attr("x",leftAlignment+110/2).attr("y",615).text("Change Baseline").attr("text-anchor","middle");
+	}
+
+	function changeBaseline(currentBaseline, districtCount) {
+		var newBaseline;
+		var newTop; 
+		var newTopText;
+		var newCenter;
+		var newCenterText;
+		var newBottom;
+		var newBottomText;
+
+		switch (currentBaseline) {
+  			case "local":
+  			default:
+  				newBaseline = "state";
+  				newBottom = "state";
+  				newBottomText = "State";
+  				newCenter = "fed";
+  				newCenterText = "Federal";
+  				newTop = "local";
+  				newTopText = "Local";
+  				break;
+  			case "state":
+  				newBaseline = "federal";
+  				newBottom = "fed";
+  				newBottomText = "Federal"
+  				newCenter = "state";
+  				newCenterText = "State";
+  				newTop = "local";
+  				newTopText = "Local"
+  				break;
+  			case "federal":
+  				newBaseline = "local";
+  				newBottom = "local";
+  				newBottomText = "Local";
+  				newCenter = "state";
+  				newCenterText = "State";
+  				newTop = "fed";
+  				newTopText = "Federal";
+  			}
+  		for (var i = 0; i<districtCount; i++) {
+  			changeDistrictBarBaseline (i, newBaseline); 
+  		}
+
+  		var sides = ["left", "right"];
+  		var vertPositions = ["Top", "Center", "Bottom"];
+  		var vertSources = [newTop, newCenter, newBottom];
+  		var vertLabels = [newTopText, newCenterText, newBottomText];
+  		var theId;
+  		var theNewClass;
+  		var theNewText;
+  		for (var i = 0; i<2; i++) {
+  			for (var j = 0; j<3; j++) {
+  				theId = sides[i] + vertPositions[j] + "FundingColor"; 
+  				theNewClass = vertSources[j] + "Bar";
+  				d3.select("#"+theId).attr("class", theNewClass);
+  				theId = sides[i] + vertPositions[j] + "FundingLegendText";
+  				d3.select("#"+theId).text(vertLabels[j]);
+  				}
+  			}
+  		return newBaseline;
+	}
+
+		function drawFundingLegend(side,baseline) {
+       		var leftAlignment =5;
+
+			switch(baseline) {
+ 			case "local":
+ 			default:
+ 				localY = 580;
+ 				stateY = 560;
+ 				fedY = 540;
+ 				break;
+			case "state":
+ 				stateY = 580;
+ 				fedY = 560;
+ 				localY = 540;
+				break;
+ 			case "federal":
+ 				fedY = 580;
+ 				stateY = 560;
+ 				localY = 540;
+ 			}
+        	if (side=="right") {
+        		leftAlignment = 2380;
+        	}
+        	var rightAlignment = leftAlignment+115;
+        	var spacing = 5;
+        	var leftAlignment2 = leftAlignment;
+        	d3.select("#theChart")
+        		.append("text").attr("class", "legendText legendHeading").attr("x", leftAlignment).attr("y", 543).text("Spending")
+        		.append("tspan").text("Per Student,").attr("x", leftAlignment).attr("y", 543+17)
+        		.append("tspan").text("by Source").attr("x", leftAlignment).attr("y", 543+2*17);
+        	d3.select("#theChart").append("rect").attr("id", side+"BottomFundingColor").attr("class","fedBar").attr("width", 5).attr("height", 10).attr("x", rightAlignment+spacing).attr("y", fedY-10);
+        	d3.select("#theChart").append("text").attr("id", side+"BottomFundingLegendText").attr("class", "legendText").attr("x", rightAlignment).attr("y", fedY).text("Federal").attr("text-anchor","end");
+			d3.select("#theChart").append("rect").attr("id", side+"CenterFundingColor").attr("class","stateBar").attr("width", 5).attr("height", 10).attr("x", rightAlignment+spacing).attr("y", stateY-10);
+        	d3.select("#theChart").append("text").attr("id", side+"CenterFundingLegendText").attr("class", "legendText").attr("x", rightAlignment).attr("y", stateY).text("State").attr("text-anchor","end");
+       		d3.select("#theChart").append("rect").attr("id", side+"TopFundingColor").attr("class","localBar").attr("width", 5).attr("height", 10).attr("x", rightAlignment+spacing).attr("y", localY-10);
+        	d3.select("#theChart").append("text").attr("id", side+"TopFundingLegendText").attr("class", "legendText").attr("x", rightAlignment).attr("y", localY).text("Local").attr("text-anchor","end");
+        	d3.select("#theChart").append("ellipse").attr("class", "incomeIndicator").attr("cx", leftAlignment2+110).attr("cy", 498).attr("rx", 2).attr("ry", 2	);		
+        	d3.select("#theChart").append("text").attr("class", "legendText").attr("x", leftAlignment2).attr("y", 495).text("Average (mean)").append("tspan").attr("x",leftAlignment2).attr("y", 509).text("per capita income");
+        }
+
+
+// MAIN SCRIPT BEGINS HERE
+
+	var colWidth = 3.5;
+	var leftMargin = 175;
+	var dataSet;
+
+ 	queue()
+      	.defer(d3.csv, "data/NY_Merged_MeanIncome_DistrictSpending_ColsRemoved.csv")
+      	.await(analyze);
+
+      	function analyze(error, NY_Merged_MeanIncome_DistrictSpending_ColsRemoved) {
+        
+        if(error) { console.log(error); }
+
+		dataSet = NY_Merged_MeanIncome_DistrictSpending_ColsRemoved;
+        districtCount = dataSet.length;
+		var xPos  = d3.scale.linear()
+      		.domain([1,districtCount])
+      		.range ([leftMargin,leftMargin+districtCount*(colWidth)]);
+
+	  	document.getElementById("parentDiv").innerHTML = "";
+
+	d3.select("div").attr("class", "thisClass"); //this works
+	d3.select("#parentDiv").append("svg").attr("id", "theChart").attr("class", "chartContainer").attr("width", 2550).attr("height",650);
+
+
+//	<div id="mainDiv">
+//	<svg width="5000" height="1000" id="chart" class="chartContainer">
+//	</svg>
+
+   for (i=0; i<districtCount; i++) {
+   		drawDistrictBar(i,dataSet[i]["PPCSTOT"],dataSet[i]["PCTLTOT"],dataSet[i]["PCTSTOT"],dataSet[i]["PCTFTOT"],dataBaseline,xPos)
+	}
+    
+	drawFundingLegend("left", dataBaseline);
+	drawFundingLegend("right", dataBaseline);
+	draw_y_grid(xPos,districtCount);
+	for (i=0; i<districtCount; i++) {
+   		plotMeanIncome(i,dataSet[i]["MeanIncomeEst"],xPos)
+	}
+	drawChangeBaselineButton("left");
+	drawChangeBaselineButton("right");
+
+	d3.select("#theChart").append("text").text("New York State School Districts With At Least 400 Students, Sorted by Average Income")
+		.attr("x",leftMargin).attr("y", 625).attr("class","legendText").attr("font-weight","bold");
+	
+}  //This bracket goes with the analyze function and should aways be the last thing before the end of the script.
+	</script>
+</html>
