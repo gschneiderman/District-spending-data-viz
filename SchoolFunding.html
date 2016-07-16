@@ -3,10 +3,12 @@
 
 <head>
   
-  <script src="http://d3js.org/d3.v3.min.js"></script> 
-  <script src="https://d3js.org/d3-drag.v1.min.js"></script>
+  <link rel="stylesheet" href="awesomplete.css" />
+  <script src="awesomplete.js" async></script>
+  <script src="d3.v3.min.js"></script>    <!-- <script src="http://d3js.org/d3.v3.min.js"></script>  -->
+  <script src="d3-drag.v1.min.js"></script>  <!-- <script src="https://d3js.org/d3-drag.v1.min.js"></script> -->
 <!--  <script src="https://d3js.org/d3.v4.min.js"></script> -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+  <script src="queue.min.js"></script>  <!--  <script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script> -->
 
 	<style type="text/css">
 
@@ -81,16 +83,37 @@
 
 		}
 
+		#districtPickerDiv {
+			position: absolute;
+			left: 10px;
+			top: 5 px;
+		}
+
+		.districtPicker {
+			width:111px;
+		}
+
+		#theChart {
+			position: absolute;
+			left: 0;
+			top: 0;
+		}
+
 
 	</style>
 
 </head>
 
 <html>
+	<div id="parentDiv">
+		<div id = "chartDiv">
+		Loading . . .
+		</div>
+		<div id=districtPickerDiv>
+		</div>
 
-<div id="parentDiv">
-	Loading . . .
-</div>
+	</div>
+
 
 <!-- <button id="ChangeBaseline" onclick="dataBaseline = changeBaseline(dataBaseline,districtCount)">Change Baseline</button>  -->
 
@@ -169,10 +192,13 @@
     	var numberSpace = 55;
     	var x0 = 100;
     	var y0 = 100;
+    	var displayHeight = 140;
+    	var displayWidth = 300;
     	var selectedLocalBar = d3.select("#localBar"+districtNumber);
     	var selectedStateBar = d3.select("#stateBar"+districtNumber);
     	var selectedFedBar = d3.select("#fedBar"+districtNumber);
 		var theDisplay;
+		var barTopYPos = Math.min(selectedLocalBar.attr("y"), selectedStateBar.attr("y"), selectedFedBar.attr("y"));
 
 		if (selectedLocalBar.classed("selectedBar")==true){
 			deleteDistrictDetailDisplay(districtNumber);
@@ -184,12 +210,12 @@
 		selectedFedBar.classed("selectedBar", true);
 		
 		x0 = selectedStateBar.attr("x")-150;
-		y0 = - 15 - 140 + Math.min(selectedLocalBar.attr("y"), selectedStateBar.attr("y"), selectedFedBar.attr("y"));
+		y0 = - 100 - 140 + barTopYPos;
 
     	d3.select("#theChart").append("g").attr("id", "overlay"+districtNumber).attr("onclick", "deleteDistrictDetailDisplay(" + districtNumber +")");
 		theDisplay = d3.select("#overlay"+districtNumber);
 	
-		var theRect = theDisplay.append("rect").attr("x",x0).attr("y",y0).attr("height",140).attr("width",300).attr("class","overlay");
+		var theRect = theDisplay.append("rect").attr("x",x0).attr("y",y0).attr("height",displayHeight).attr("width",displayWidth).attr("class","overlay");
 		theDisplay.append("text").attr("x",x0+10).attr("y",y0+20).text(districtName).attr("class", "legendText legendHeading");
 		
 		theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+35).text("Population:").attr("class","legendText").attr("text-anchor", "end");
@@ -206,6 +232,7 @@
     	theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+110).text(districtStateRevPct+"%").attr("class","legendText").attr("text-anchor", "end");
     	theDisplay.append("text").attr("x",x0+labelAlign).attr("y",y0+125).text("Revenue from Federal Sources:").attr("class","legendText").attr("text-anchor", "end");
     	theDisplay.append("text").attr("x",x0+labelAlign+numberSpace).attr("y",y0+125).text(districtFedRevPct+"%").attr("class","legendText").attr("text-anchor", "end");
+    	theDisplay.append("line").attr("x1",x0+.5*displayWidth+2).attr("y1", y0+displayHeight).attr("x2", x0+.5*displayWidth+2).attr("y2",barTopYPos).attr("style","stroke:rgb(100,100,100);stroke-width:1;stroke-dasharray:3,2");
     }   
 
   	function changeDistrictBarBaseline (districtNumber, baseline) {
@@ -387,7 +414,49 @@
         	d3.select("#theChart").append("text").attr("class", "legendText").attr("x", leftAlignment2).attr("y", 495).text("Average (mean)").append("tspan").attr("x",leftAlignment2).attr("y", 509).text("per capita income");
         }
 
+    function createDistrictPicker() {
+  
+  		var districtNameArray = dataSet.map(function(a) {return a["GEO.display.label"];})
+  		var input;
+  		var awesomplete;
 
+		document.getElementById("districtPickerDiv").innerHTML = "Find a district:<br>";
+  		d3.select("#districtPickerDiv").attr("class","legendText").append("input").attr("class","districtPicker awesomplete").attr("id", "districtPicker1");
+  		input = document.getElementById("districtPicker1");
+		var awesomplete = new Awesomplete(input);
+    	awesomplete.list = districtNameArray;
+    	Awesomplete.$.bind(input, {"awesomplete-selectcomplete": selectDistrictWithPicker});
+    	awesomplete.autoFirst = true;
+  		
+ //		d3.select("#districtPickerDiv").append("br");
+ //		d3.select("#districtPickerDiv").append("button").attr("id","distButtonID1").text("Select")
+ //			.attr("onclick", "selectDistrictWithPicker()");
+
+ //		d3.select("#districtPicker1").attr("input", "selectDistrictWithPicker('input')")
+ //			.attr("awesomplete-selectcomplete", "selectDistrictWithPicker('awesomplete-selectcomplete')")
+ //			.attr("oninput","selectDistrictWithPicker('oninput')");
+
+		//input.setAttribute("awesomplete-selectcomplete", "selectDistrictWithPicker('awesomplete-selectcomplete')");
+ //		input.setAttribute("oninput", "selectDistrictWithPicker('input')");
+		// attr("onclick", "selectDistrictWithPicker()").
+    	//d3.select("#districtPicker1").attr("awesomplete-highlight","selectDistrictWithPicker()");    	//attr("oninput","selectDistrictWithPicker()").
+    } 
+
+    function selectDistrictWithPicker(x) {
+ //   	console.log("Hello");
+    	var a = document.getElementById("districtPicker1"); 
+    	var districtName = a.value;
+    	var districtNameArray = dataSet.map(function(a) {return a["GEO.display.label"];})
+		var districtNumber = districtNameArray.indexOf(districtName);
+		toggleDistrictDetailDisplay(districtNumber);
+    }
+
+
+    function myFunct2() {
+    	console.log("myFunct2");
+    }
+
+ 	
 // MAIN SCRIPT BEGINS HERE
 
 	var colWidth = 3.5;
@@ -408,10 +477,9 @@
       		.domain([1,districtCount])
       		.range ([leftMargin,leftMargin+districtCount*(colWidth)]);
 
-	  	document.getElementById("parentDiv").innerHTML = "";
+	  	document.getElementById("chartDiv").innerHTML = "";
 
-	d3.select("div").attr("class", "thisClass"); //this works
-	d3.select("#parentDiv").append("svg").attr("id", "theChart").attr("class", "chartContainer").attr("width", 2550).attr("height",650);
+	d3.select("#chartDiv").append("svg").attr("id", "theChart").attr("class", "chartContainer").attr("width", 2550).attr("height",650);
 
 
 //	<div id="mainDiv">
@@ -433,7 +501,10 @@
 
 	d3.select("#theChart").append("text").text("New York State School Districts With At Least 400 Students, Sorted by Average Income")
 		.attr("x",leftMargin).attr("y", 625).attr("class","legendText").attr("font-weight","bold");
-	
+
+	createDistrictPicker();
+
+
 }  //This bracket goes with the analyze function and should aways be the last thing before the end of the script.
 	</script>
 </html>
